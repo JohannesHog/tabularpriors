@@ -44,6 +44,9 @@ def dump_prior_to_h5(
         dump_num_features = f.create_dataset(
             "num_features", shape=(0,), maxshape=(None,), chunks=(batch_size,), dtype="i4"
         )
+        dump_num_datapoints = f.create_dataset(
+            "num_datapoints", shape=(0,), maxshape=(None,), chunks=(batch_size,), dtype="i4"
+        )
         dump_y = f.create_dataset(
             "y", shape=(0, max_seq_len), maxshape=(None, max_seq_len), chunks=(batch_size, max_seq_len)
         )
@@ -77,6 +80,9 @@ def dump_prior_to_h5(
 
             dump_num_features.resize(dump_num_features.shape[0] + batch_size, axis=0)
             dump_num_features[-batch_size:] = x.shape[2]
+
+            dump_num_datapoints.resize(dump_num_datapoints.shape[0] + batch_size, axis=0)
+            dump_num_datapoints[-batch_size:] = x.shape[1]
 
             dump_single_eval_pos.resize(dump_single_eval_pos.shape[0] + batch_size, axis=0)
             dump_single_eval_pos[-batch_size:] = single_eval_pos

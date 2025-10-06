@@ -20,6 +20,7 @@ def main():
     parser.add_argument("--prior_type", type=str, default="mlp", choices=["mlp", "gp"], help="Which TICL prior to use.")
     parser.add_argument("--min_features", type=int, default=1, help="Minimum number of input features.")
     parser.add_argument("--max_features", type=int, default=100, help="Maximum number of input features.")
+    parser.add_argument("--min_seq_len", type=int, default=None, help="Minimum number of data points per function.")
     parser.add_argument("--max_seq_len", type=int, default=1024, help="Maximum number of data points per function.")
     parser.add_argument("--min_eval_pos", type=int, default=10, help="Minimum evaluation position in the sequence.")
     parser.add_argument("--max_classes", type=int, default=10, help="Maximum number of classes (classification only).")
@@ -52,9 +53,12 @@ def main():
         )
         problem_type = "regression"
     else:
+        if args.min_seq_len == args.max_seq_len:
+            args.min_seq_len = None  # TabICL prior requires min_seq_len < max_seq_len
         prior = TabICLPriorDataLoader(
             num_steps=args.num_batches,
             batch_size=args.batch_size,
+            num_datapoints_min=args.min_seq_len,
             num_datapoints_max=args.max_seq_len,
             min_features=args.min_features,
             max_features=args.max_features,

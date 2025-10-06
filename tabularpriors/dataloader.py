@@ -67,6 +67,8 @@ class PriorDumpDataLoader(DataLoader):
             else:
                 self.max_num_classes = None
             self.problem_type = f["problem_type"][()].decode("utf-8")
+            self.has_num_datapoints = "num_datapoints" in f
+            self.stored_max_seq_len = f["X"].shape[1]
         self.device = device
         self.pointer = 0
 
@@ -76,8 +78,14 @@ class PriorDumpDataLoader(DataLoader):
                 end = self.pointer + self.batch_size
 
                 num_features = f["num_features"][self.pointer : end].max()
-                x = torch.from_numpy(f["X"][self.pointer : end, :, :num_features])
-                y = torch.from_numpy(f["y"][self.pointer : end])
+                if self.has_num_datapoints:
+                    num_datapoints_batch = f["num_datapoints"][self.pointer:end]
+                    max_seq_in_batch = int(num_datapoints_batch.max())
+                else:
+                    max_seq_in_batch = int(self.stored_max_seq_len)
+
+                x = torch.from_numpy(f["X"][self.pointer:end, :max_seq_in_batch, :num_features])
+                y = torch.from_numpy(f["y"][self.pointer:end, :max_seq_in_batch])
                 single_eval_pos = f["single_eval_pos"][self.pointer : end]
 
                 self.pointer += self.batch_size
@@ -105,6 +113,7 @@ class TabICLPriorDataLoader(DataLoader):
     Args:
         num_steps (int): Number of batches to generate per epoch.
         batch_size (int): Number of functions per batch.
+        num_datapoints_min (int): Minimum number of datapoints per function.
         num_datapoints_max (int): Maximum number of datapoints per function.
         min_features (int): Minimum number of features in x.
         max_features (int): Maximum number of features in x.
@@ -116,6 +125,7 @@ class TabICLPriorDataLoader(DataLoader):
         self,
         num_steps: int,
         batch_size: int,
+        num_datapoints_min: int,
         num_datapoints_max: int,
         min_features: int,
         max_features: int,
@@ -124,6 +134,7 @@ class TabICLPriorDataLoader(DataLoader):
     ):
         self.num_steps = num_steps
         self.batch_size = batch_size
+        self.num_datapoints_min = num_datapoints_min
         self.num_datapoints_max = num_datapoints_max
         self.min_features = min_features
         self.max_features = max_features
@@ -136,6 +147,7 @@ class TabICLPriorDataLoader(DataLoader):
             min_features=min_features,
             max_features=max_features,
             max_classes=max_num_classes,
+            min_seq_len=num_datapoints_min,
             max_seq_len=num_datapoints_max,
         )
 

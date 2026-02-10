@@ -1,10 +1,11 @@
 """Data loading utilities for tabular priors."""
-
+from copy import deepcopy
 from typing import Callable, Dict, Iterator, Union
 
 import h5py
 import torch
 from tabicl.prior.dataset import PriorDataset as TabICLPriorDataset
+from tabicl.prior.prior_config import DEFAULT_FIXED_HP, DEFAULT_SAMPLED_HP
 from ticl.dataloader import PriorDataLoader as TICLPriorDataset
 from torch.utils.data import DataLoader
 
@@ -131,6 +132,16 @@ class TabICLPriorDataLoader(DataLoader):
         max_features: int,
         max_num_classes: int,
         device: torch.device,
+        prior_type: str = "mix_scm",
+        mlp_scm_prob: float = 0.7,
+        tree_model: str="xgboost",
+        tree_depth_lambda: float = 0.5, # Figure out what it means
+        tree_n_estimators_lambda: float = 0.5, # Figure out what it means
+        mlp_dropout_prob_max: float = 5.0, # sparsity of connections - look into it
+        num_causes_max_mean: int = 12,
+        num_layers_max_mean: int = 6,
+        hidden_dim_max_mean: int = 130,
+        noise_std_max_mean: float = 0.3,
     ):
         self.num_steps = num_steps
         self.batch_size = batch_size
@@ -141,6 +152,22 @@ class TabICLPriorDataLoader(DataLoader):
         self.max_num_classes = max_num_classes
         self.device = device
 
+        assert 0.0 <= mlp_scm_prob <= 1.0, "mlp_scm_prob must be between 0 and 1"
+        mlp_scm_prob = 0.0
+        scm_fixed_hp = deepcopy(DEFAULT_FIXED_HP)
+        scm_fixed_hp["mix_probs"] = (mlp_scm_prob, 1 - mlp_scm_prob)
+        scm_fixed_hp["tree_model"] = tree_model
+        scm_fixed_hp["tree_depth_lambda"] = tree_depth_lambda
+        scm_fixed_hp["tree_n_estimators_lambda"] = tree_n_estimators_lambda
+
+        scm_sampled_hp = deepcopy(DEFAULT_SAMPLED_HP)
+        scm_sampled_hp["mlp_dropout_prob"]["max"] = mlp_dropout_prob_max
+        scm_sampled_hp["num_causes"]["max_mean"] = num_causes_max_mean
+        scm_sampled_hp["num_layers"]["max_mean"] = num_layers_max_mean
+        scm_sampled_hp["hidden_dim"]["max_mean"] = hidden_dim_max_mean
+        scm_sampled_hp["noise_std"]["max_mean"] = noise_std_max_mean
+
+
         self.pd = TabICLPriorDataset(
             batch_size=batch_size,
             batch_size_per_gp=batch_size,
@@ -149,6 +176,9 @@ class TabICLPriorDataLoader(DataLoader):
             max_classes=max_num_classes,
             min_seq_len=num_datapoints_min,
             max_seq_len=num_datapoints_max,
+            scm_fixed_hp=scm_fixed_hp,
+            scm_sampled_hp=scm_sampled_hp,
+            prior_type=prior_type,
         )
 
     def tabicl_to_ours(self, d):
